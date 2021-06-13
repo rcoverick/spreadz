@@ -1,9 +1,9 @@
 from argparse import ArgumentParser
 import requests
 import os
-import json 
 from datetime import datetime 
 import statistics
+import csv
 
 def get_contracts(exp_map):
     """
@@ -37,17 +37,23 @@ def get_itm_contracts(contracts):
         contracts_by_dte[dte].sort(key = lambda c: c["strikePrice"])
     return contracts_by_dte
 
-def is_good_vertical_spread(a,b):
-    """
-    a = long leg 
-    b = short leg
-    """
-    strike_width = b["strikePrice"] - a["strikePrice"]
-    if strike_width == 0:
-        return False
-    debit_required = a["last"] - b["last"]
-    return debit_required / strike_width <= 0.5
+def get_profit_potential_pct(spread):
+    spread_raw_profit = (spread["spread_width"] - spread["est_spread_cost"] )
+    if spread["est_spread_cost"] == 0:
+        return 0
+    profit_potential  =  spread_raw_profit / spread["est_spread_cost"]
+    return profit_potential
 
+def build_spread_basic_info(long_contract,short_contract):
+    spread_details= {}
+    spread_details["long_leg_desc"]     = long_contract["description"]
+    spread_details["short_leg_desc"]    = short_contract["description"]
+    spread_details["spread_width"]      = short_contract["strikePrice"] - long_contract["strikePrice"]
+    spread_details["est_spread_cost"]   = long_contract["last"] - short_contract["last"]
+    spread_details["long_leg_details"]  = long_contract
+    spread_details["short_leg_details"] = short_contract
+    spread_details["spread_DTE"]        = long_contract["daysToExpiration"]
+    return spread_details
 
 def compute_vertical_spreads(contracts):
     """
@@ -58,16 +64,16 @@ def compute_vertical_spreads(contracts):
         - the max profit is at least 50% of the width of the strikes 
     """
     grouped_contracts = get_itm_contracts(contracts)
-    spreads = {}
+    spreads = []
     for dte, contracts in grouped_contracts.items():
         for i in range(len(contracts)):
             current_contract = contracts[i]
             for j in range(i,len(contracts)):
                 compare_contract = contracts[j]
-                if is_good_vertical_spread(current_contract, compare_contract):
-                    key =  f"{current_contract.get('description')} / {compare_contract.get('description')}"
-                    spreads[key] = [current_contract, compare_contract]
-
+                spread_details = build_spread_basic_info(current_contract, compare_contract)
+                spread_details["est_profit_potential_pct"] = get_profit_potential_pct(spread_details)
+                if spread_details["est_profit_potential_pct"] > 50:
+                    spreads.append(spread_details)
     return spreads
 
 if __name__ == "__main__":
@@ -96,6 +102,4 @@ if __name__ == "__main__":
     calls = filter_mean_open_interest(calls)
 
     calls = compute_vertical_spreads(calls)
-    print(json.dumps(calls))
-    print(f"{datetime.now()-start}")
-
+    
