@@ -46,7 +46,7 @@ def is_good_vertical_spread(a,b):
     if strike_width == 0:
         return False
     debit_required = a["last"] - b["last"]
-    return debit_required / strike_width >= 0.5
+    return debit_required / strike_width <= 0.5
 
 
 def compute_vertical_spreads(contracts):
@@ -76,8 +76,9 @@ if __name__ == "__main__":
     p.add_argument("--symbol", default="SPY", help="Symbol to analyze")
     args = p.parse_args()
     apikey = os.environ["tdapikey"]
-    if apikey is not None:
-        print("Found API Key")
+    if apikey is None:
+        print("Missing tdapikey environment variable")
+        os.exit(1)
     host = "https://api.tdameritrade.com/v1/marketdata/chains"
     input_params = {"apikey": apikey, "symbol": args.symbol}
 
@@ -91,7 +92,6 @@ if __name__ == "__main__":
     puts = get_contracts(data.get('putExpDateMap'))
     calls = get_contracts(data.get('callExpDateMap'))
     
-    print(f"{len(puts)} puts, {len(calls)} calls")
     puts = filter_mean_open_interest(puts)
     calls = filter_mean_open_interest(calls)
 
