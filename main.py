@@ -16,7 +16,7 @@ def get_contracts(exp_map):
                 results.append(contract)
     return results
 
-def filter_meean_open_interest(contracts):
+def filter_mean_open_interest(contracts):
     median_oi = statistics.mean([c.get('openInterest') for c in contracts])
     contracts = [c for c in contracts if c.get('openInterest') >= median_oi]
     return contracts
@@ -43,9 +43,11 @@ if __name__ == "__main__":
     calls = get_contracts(data.get('callExpDateMap'))
     
     print(f"{len(puts)} puts, {len(calls)} calls")
-    puts = filter_median_open_interest(puts)
-    calls = filter_median_open_interest(calls)
-    
-    print(f"{len(puts)} puts, {len(calls)} calls")
+    puts = filter_mean_open_interest(puts)
+    calls = filter_mean_open_interest(calls)
 
+    print(f"{len(puts)} puts, {len(calls)} calls")
+    print(json.dumps(puts))
+    print(json.dumps(calls))
     print(f"{datetime.now()-start}")
+
