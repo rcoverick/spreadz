@@ -123,30 +123,20 @@ def write_results_file(symbol, dt, fieldnames, results):
         writer.writeheader()
         writer.writerows(results)
 
-
-if __name__ == "__main__":
-    start = datetime.now()
-    p = ArgumentParser()
-    p.add_argument("--symbol", default="SPY", help="Symbol to analyze")
-    args = p.parse_args()
-    apikey = os.environ["tdapikey"]
-    if apikey is None:
-        print("Missing tdapikey environment variable")
-        os.exit(1)
-    host = "https://api.tdameritrade.com/v1/marketdata/chains"
-    input_params = {"apikey": apikey, "symbol": args.symbol}
-
+def read_data_from_td(host, input_params):
     data = requests.get(host, params=input_params)
     if data.status_code != 200:
         print(f"Got error code {data.status_code} from TD")
         os.exit(1)
     else:
         data = data.json()
+    return data 
 
-    puts = get_contracts(data.get("putExpDateMap"))
+def run_vertical_call_spreads(symbol, apikey):
+    host = "https://api.tdameritrade.com/v1/marketdata/chains"
+    input_params = {"apikey": apikey, "symbol": symbol}
+    data = read_data_from_td(host, input_params)
     calls = get_contracts(data.get("callExpDateMap"))
-
-    puts = filter_mean_open_interest(puts)
     calls = filter_mean_open_interest(calls)
     vertical_call_spreads = analyze_vertical_spreads(calls)
     fieldnames = [
@@ -161,4 +151,18 @@ if __name__ == "__main__":
         "long_leg_details",
         "short_leg_details",
     ]
-    write_results_file(args.symbol, datetime.now(), fieldnames, vertical_call_spreads)
+    write_results_file(symbol, datetime.now(), fieldnames, vertical_call_spreads)
+
+if __name__ == "__main__":
+    start = datetime.now()
+    p = ArgumentParser()
+    p.add_argument("--symbols", default="SPY", help="Symbol to analyze")
+    args = p.parse_args()
+    apikey = os.environ["tdapikey"]
+    if apikey is None:
+        print("Missing tdapikey environment variable")
+        os.exit(1)
+    
+    symbols_list = args.symbols.split(",")
+    for symbol in symbols_list:
+        run_vertical_call_spreads(symbol, apikey)
