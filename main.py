@@ -51,6 +51,14 @@ def get_profit_potential_pct(spread):
     profit_potential = trunc(profit_potential * 1000) / 1000
     return profit_potential
 
+def get_mid_spread_cost(long_contract, short_contract):
+    """
+    computes the mid point cost of a spread to account for 
+    wide bid/ask spreads
+    """
+    long_contract_mid = statistics.mean([long_contract["bid"], long_contract["ask"]])
+    short_contract_mid = statistics.mean([short_contract["bid"], short_contract["ask"]])
+    return long_contract_mid - short_contract_mid
 
 def build_spread_basic_info(long_contract, short_contract):
     spread_details = {}
@@ -59,7 +67,7 @@ def build_spread_basic_info(long_contract, short_contract):
     spread_details["spread_width"] = (
         short_contract["strikePrice"] - long_contract["strikePrice"]
     )
-    spread_details["est_spread_cost"] = long_contract["last"] - short_contract["last"]
+    spread_details["est_spread_cost"] = get_mid_spread_cost(long_contract,short_contract)
     spread_details["long_leg_details"] = long_contract
     spread_details["short_leg_details"] = short_contract
     spread_details["spread_DTE"] = long_contract["daysToExpiration"]
@@ -89,7 +97,7 @@ def analyze_vertical_spreads(contracts):
     for dte, contracts in grouped_contracts.items():
         for i in range(len(contracts)):
             current_contract = contracts[i]
-            for j in range(i, len(contracts)):
+            for j in range(i+1, len(contracts)):
                 compare_contract = contracts[j]
                 spread_details = build_spread_basic_info(
                     current_contract, compare_contract
